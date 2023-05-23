@@ -34,7 +34,7 @@ router.post('/', async (req, res) => {
 // getting all orders;
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 }).populate('owner', ['email', 'name']);
+    const orders = await Order.find().sort({ date: -1 }).populate('owner', ['email', 'name']);
     res.status(200).json(orders);
   } catch (e) {
     res.status(400).json(e.message);
