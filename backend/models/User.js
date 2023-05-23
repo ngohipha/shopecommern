@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-
+const crypto = require('crypto');
 const UserSchema = mongoose.Schema(
   {
     name: {
@@ -10,17 +10,14 @@ const UserSchema = mongoose.Schema(
 
     email: {
       type: String,
-      required: [true, "is required"],
+      required: true,
       unique: true,
-      index: true,
-      validate: {
-        validator: function (str) {
-          return /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g.test(str);
-        },
-        message: (props) => `${props.value} is not a valid email`,
-      },
     },
-
+    mobile: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     password: {
       type: String,
       required: [true, "is required"],
@@ -37,6 +34,29 @@ const UserSchema = mongoose.Schema(
         total: 0,
         count: 0,
       },
+    },
+    refreshToken: {
+      type: String,
+    },
+    passwordChangeAt: {
+      type: String,
+    },
+    passwordRestToken: {
+      type: String,
+    },
+    passwordRestExpires: {
+      type: String,
+    },
+    registerToken: {
+      type: String,
+    },
+    registrationToken: {
+      type: String,
+      default: null,
+    },
+    registrationExpiration: {
+      type: String,
+      default: null,
     },
 
     notifications: {
@@ -86,6 +106,16 @@ UserSchema.pre("remove", function (next) {
   this.model("Order").remove({ owner: this._id }, next);
 });
 
+UserSchema.methods.isCorrectPassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+UserSchema.methods.createPasswordChangedToken = function () {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.passwordRestToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordRestExpires = Date.now() + 15 * 60 * 1000;
+  return resetToken;
+};
 const User = mongoose.model("User", UserSchema);
 
 module.exports = User;
