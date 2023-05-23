@@ -21,8 +21,8 @@ const OrderSchema = mongoose.Schema({
     default: 0
   },
   date: {
-    type: String,
-    default: new Date().toISOString().split('T')[0]
+    type: Date,
+    default: Date.now
   },
   address: {
     type: String,

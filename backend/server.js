@@ -3,8 +3,8 @@ const cors = require("cors");
 const app = express();
 const http = require("http");
 require("./connection");
-require('dotenv').config();
-const stripe = require('stripe')(process.env.STRIPE_SECRET)
+// require('dotenv').config();
+// const stripe = require('stripe')(process.env.STRIPE_SECRET)
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 
@@ -28,20 +28,20 @@ app.use('/images' , imageRoutes)
 app.use('/orders' , orderRoutes)
 
 
-app.post('/create-payment', async(req, res)=> {
-  const {amount} = req.body;
-  try {
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      payment_method_types: ['card']
-    });
-    res.status(200).json(paymentIntent)
-  } catch (e) {
-    console.log(e.message);
-    res.status(400).json(e.message);
-   }
-})
+// app.post('/create-payment', async(req, res)=> {
+//   const {amount} = req.body;
+//   try {
+//     const paymentIntent = await stripe.paymentIntents.create({
+//       amount,
+//       currency: 'usd',
+//       payment_method_types: ['card']
+//     });
+//     res.status(200).json(paymentIntent)
+//   } catch (e) {
+//     console.log(e.message);
+//     res.status(400).json(e.message);
+//    }
+// })
 
 server.listen(8080, () => {
   console.log("server running at port", 8080);
