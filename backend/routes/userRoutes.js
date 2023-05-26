@@ -5,15 +5,12 @@ const makeToken = require("uniqid");
 const crypto = require("crypto");
 const { sendMail } = require("../ultils/sendmail");
 require("dotenv").config();
+const emailValidator = require("email-validator");
+const passwordValidator = require("password-validator");
 
 // signup
-// k xac thuc tu dong xoa khoi data sau 16p
-setInterval(async () => {
-  const now = new Date().getTime();
-  await User.deleteMany({
-    registrationExpiration: { $lt: now },
-  });
-}, 16 * 60 * 1000); // Xóa các tài khoản quá hạn mỗi giờ (3600000 ms)
+const schema = new passwordValidator();
+schema.is().min(6).is().max(12);
 router.post("/signup", async (req, res) => {
   const { email, password, mobile, name } = req.body;
   if (!email || !password || !name || !mobile) {
@@ -22,75 +19,79 @@ router.post("/signup", async (req, res) => {
       mes: "Missing inputs",
     });
   }
-  if (!email.includes("@") || !email.endsWith(".com")) {
+  // Validate email
+  if (!emailValidator.validate(email)) {
     return res.status(400).json({
       success: false,
-      mes: "Invalid email format Ex:abc@gmail.com",
-    });
-  }
-  const mobileRegex = /^\d{10}$/;
-  if (!mobileRegex.test(mobile)) {
-    return res.status(400).json({
-      success: false,
-      mes: "Mobile number must have exactly 10 digits",
-    });
-  }
-  if (password.length < 6 || password.length > 12) {
-    return res.status(400).json({
-      success: false,
-      mes: "Password must be between 6 and 12 characters",
+      mes: "Invalid email",
     });
   }
 
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
+  // Validate password
+  if (!schema.validate(password)) {
     return res.status(400).json({
       success: false,
-      mes: "User already exists",
+      mes: "Invalid password",
     });
-  } else {
-    const token = makeToken();
-    const now = new Date();
-    const expiration = now.getTime() + 15 * 60 * 1000;
-    await User.create({
-      email,
-      password,
-      mobile,
-      name,
-      registrationToken: token,
-      registrationExpiration: expiration,
-    });
-    const html = `Xin vui lòng click vào link dưới đây để xác thực tài khoản. Link này sẽ hết hạn sau 15 phút: <a href=${process.env.URL_SERVER}/finalregister/${token}>Click here</a>`;
-    await sendMail({ email, html, subject: "Xác Thực Mail" });
-    return res.json({
-      success: true,
-      mes: "Please check your email to activate your account",
-    });
+  }
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        mes: "User already exists",
+      });
+    } else {
+      const token = makeToken();
+      // Store the user with isAccept: false in the database
+      const user = await User.create({
+        email,
+        password,
+        mobile,
+        name,
+        isAccept: false,
+        registerToken: token,
+      });
+
+      const html = `Xin vui lòng click vào link dưới đây để xác thực tài khoản. Link này sẽ hết hạn sau 15 phút: <a href="${process.env.URL_SERVER}/users/finalregister/${token}">Click here</a>`;
+      await sendMail({ email, html, subject: "Xác Thực Mail" });
+
+      // Schedule a timeout to check if the user has verified within 15 minutes
+      setTimeout(async () => {
+        const updatedUser = await User.findOne({ registerToken: token });
+        if (updatedUser && !updatedUser.isAccept) {
+          // User hasn't verified within 15 minutes, delete the record
+          await User.deleteOne({ registerToken: token });
+        }
+      }, 15 * 60 * 1000); // 15 minutes in milliseconds
+
+      res.status(200).json({
+        success: true,
+        mes: "Signup successful. Please check your email to verify your account.",
+      });
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).send("Internal Server Error");
   }
 });
-// xác thực tài khoản
 router.get("/finalregister/:token", async (req, res) => {
   const { token } = req.params;
-  const now = new Date();
+  try {
+    const user = await User.findOneAndUpdate(
+      { registerToken: token },
+      { isAccept: true },
+      { new: true }
+    );
 
-  const user = await User.findOne({
-    registrationToken: token,
-    registrationExpiration: { $gt: now.getTime() },
-  });
+    if (!user) {
+      return res.redirect(`${process.env.CLIENT_URL}/finalregister/failed`);
+    }
 
-  if (!user) {
-    return res.redirect(`${process.env.CLIENT_URL}/finalregister/failed`);
-  }
-
-  if (user) {
-    user.registrationToken = undefined;
-    user.registrationExpiration = undefined;
-    // await User.deleteMany({
-    //   registrationToken: { registrationToken: null },
-    // });
     return res.redirect(`${process.env.CLIENT_URL}/finalregister/success`);
-  } else {
-    return res.redirect(`${process.env.CLIENT_URL}/finalregister/failed`);
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).send("Internal Server Error");
   }
 });
 // login
@@ -99,7 +100,32 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findByCredentials(email, password);
-    res.json(user);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        mes: "Invalid email or password.",
+      });
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      console.log(!isPasswordValid);
+
+      return res.status(401).json({
+        success: false,
+        mes: "Invalid credentials.",
+      });
+    }
+    if (!user.isAccept) {
+      return res.status(400).json({
+        success: false,
+        mes: "Vui lòng xác nhận email của bạn.",
+      });
+    }
+
+    // User is verified and password is correct, proceed with login
+    res.json({ success: true, data: user });
   } catch (e) {
     res.status(400).send(e.message);
   }

@@ -16,7 +16,6 @@ const UserSchema = mongoose.Schema(
     mobile: {
       type: String,
       required: true,
-      unique: true,
     },
     password: {
       type: String,
@@ -24,6 +23,10 @@ const UserSchema = mongoose.Schema(
     },
 
     isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    isAccept: {
       type: Boolean,
       default: false,
     },
@@ -50,14 +53,8 @@ const UserSchema = mongoose.Schema(
     registerToken: {
       type: String,
     },
-    registrationToken: {
-      type: String,
-      default: null,
-    },
-    registrationExpiration: {
-      type: String,
-      default: null,
-    },
+   
+   
 
     notifications: {
       type: Array,
@@ -115,6 +112,15 @@ UserSchema.methods.createPasswordChangedToken = function () {
   this.passwordRestToken = crypto.createHash('sha256').update(resetToken).digest('hex');
   this.passwordRestExpires = Date.now() + 15 * 60 * 1000;
   return resetToken;
+};
+
+UserSchema.methods.comparePassword = async function (password) {
+  try {
+    const match = await bcrypt.compare(password, this.password);
+    return match;
+  } catch (error) {
+    throw new Error(error);
+  }
 };
 const User = mongoose.model("User", UserSchema);
 
