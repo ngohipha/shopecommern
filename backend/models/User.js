@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const crypto = require('crypto');
+const crypto = require("crypto");
 const UserSchema = mongoose.Schema(
   {
     name: {
@@ -52,9 +52,8 @@ const UserSchema = mongoose.Schema(
     },
     registerToken: {
       type: String,
+      index: true,
     },
-   
-   
 
     notifications: {
       type: Array,
@@ -108,8 +107,11 @@ UserSchema.methods.isCorrectPassword = async function (password) {
 };
 
 UserSchema.methods.createPasswordChangedToken = function () {
-  const resetToken = crypto.randomBytes(32).toString('hex');
-  this.passwordRestToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.passwordRestToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
   this.passwordRestExpires = Date.now() + 15 * 60 * 1000;
   return resetToken;
 };

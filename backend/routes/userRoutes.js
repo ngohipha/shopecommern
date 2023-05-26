@@ -96,36 +96,17 @@ router.get("/finalregister/:token", async (req, res) => {
 });
 // login
 
-router.post("/login", async (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findByCredentials(email, password);
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        mes: "Invalid email or password.",
-      });
+    if (user.isAccept) {
+      // Trạng thái xác thực là true, cho phép người dùng đăng nhập
+      res.json(user);
+    } else {
+      // Trạng thái xác thực là false, hiển thị thông báo lỗi hoặc yêu cầu người dùng hoàn tất quá trình xác thực qua email.
+      res.status(401).json({ error: 'Tài khoản chưa được xác thực qua email.' });
     }
-
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      console.log(!isPasswordValid);
-
-      return res.status(401).json({
-        success: false,
-        mes: "Invalid credentials.",
-      });
-    }
-    if (!user.isAccept) {
-      return res.status(400).json({
-        success: false,
-        mes: "Vui lòng xác nhận email của bạn.",
-      });
-    }
-
-    // User is verified and password is correct, proceed with login
-    res.json({ success: true, data: user });
   } catch (e) {
     res.status(400).send(e.message);
   }
