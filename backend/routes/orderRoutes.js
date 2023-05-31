@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const Order = require('../models/Order');
 const User = require('../models/User');
-
+const Debt = require('../models/Debt')
 
 //creating an order
 
@@ -11,17 +11,37 @@ router.post('/', async (req, res) => {
   try {
     const user = await User.findById(userId);
 
-    // Tạo đơn hàng với các thông tin được cung cấp
-    const order = new Order({ owner: user._id, products: cart, country, address });
+    // Create an order with the provided information
+    const order = new Order({ owner: user._id, products: cart, country, address,paymentMethod: req.body.paymentMethod, });
     order.count = cart.count;
     order.total = cart.total;
+
+    // Check if the user isCustomer and the paymentMethod is "Ghi nợ"
+    if (user.isCustomer && req.body.paymentMethod === 'Ghi nợ') {
+      // Save the order in the `debtOrderModel` model
+      const debtOrder = new Debt({
+        orderId: order._id,
+        orderDate: order.date,
+        customerId: user._id,
+        product: order.products,
+        totalAmount: order.total,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        paymentDate: order.paymentDate,
+        notes: order.notes
+      });
+      await debtOrder.save();
+    }
+
+    // Save the order in the main `Order` model
     await order.save();
 
-    // Cập nhật giỏ hàng của người dùng và danh sách đơn hàng
+    // Update the user's cart and order list
     user.cart = { total: 0, count: 0 };
-    user.orders.unshift(order); // Đẩy đơn hàng mới vào đầu danh sách
+    user.orders.unshift(order);
     const notification = { status: 'unread', message: `Đơn hàng mới từ ${user.name}`, time: new Date() };
     io.sockets.emit('new-order', notification);
+
     await user.save();
 
     res.status(200).json(user);

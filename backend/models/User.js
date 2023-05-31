@@ -30,6 +30,10 @@ const UserSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isCustomer: {
+      type: Boolean,
+      default: false,
+    },
 
     cart: {
       type: Object,
@@ -61,6 +65,7 @@ const UserSchema = mongoose.Schema(
     },
 
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],
+    debt: [{ type: mongoose.Schema.Types.ObjectId, ref: "Debt" }],
   },
   { minimize: false }
 );
