@@ -23,10 +23,8 @@ router.get("/", async (req, res) => {
 router.post("/debtOrders/:id/pay", async(req,res)=>{
   const {id} = req.params;
   const { user_id } = req.body;
-  console.log({user_id});
   try {
     const user = await User.findById(user_id);
-    console.log(user);
     if (!user.isAdmin === false) return res.status(401).json("You don't have permission");
     // update the payment status and payment date of the order
     const updatedOrder = await DebtOrder.findByIdAndUpdate( id, { 
