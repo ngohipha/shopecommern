@@ -23,12 +23,14 @@ router.get("/", async (req, res) => {
 router.post("/debtOrders/:id/pay", async(req,res)=>{
   const {id} = req.params;
   const { user_id } = req.body;
+  console.log({user_id});
   try {
     const user = await User.findById(user_id);
-    if (!user.isAdmin) return res.status(401).json("You don't have permission");
+    console.log(user);
+    if (!user.isAdmin === false) return res.status(401).json("You don't have permission");
     // update the payment status and payment date of the order
     const updatedOrder = await DebtOrder.findByIdAndUpdate( id, { 
-      paymentStatus : "Paid",
+      paymentStatus : "Đã Thanh Toán",
       paymentDate: new Date()
     },{new : true});
     if (!updatedOrder) {
@@ -49,7 +51,7 @@ router.delete("/debtOrders/:id",async(req,res)=>{
 
   try {
     const user = await User.findById(user_id);
-    if (!user.isAdmin) return res.status(401).json("You don't have permission");
+    if (!user.isAdmin === false) return res.status(401).json("You don't have permission");
     const deleteOrder = await DebtOrder.findOneAndDelete(id);
     if(!deleteOrder){
       return res.status(404).json({ error: "Order not found" });
