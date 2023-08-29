@@ -9,7 +9,7 @@ const debtOrderSchema = new Schema({
     ref: "User",
     require: true,
   },
-  product: { type: Object },
+  products: { type: Object },
   totalAmount: { type: Number, require: true },
   paymentMethod: { type: String },
   paymentStatus: {
